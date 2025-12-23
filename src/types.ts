@@ -1,10 +1,6 @@
 export interface Settings {
-    mapTitle: string;
-    mapDescription: string;
-    mapStyle: string;
-    defaultZoom: string;
-    mapHeight: string;
     showAssetCount: boolean;
+    sortBy: string;
 }
 
 export interface CustomMetadataProperty {
@@ -14,29 +10,64 @@ export interface CustomMetadataProperty {
 
 export interface CustomMetadataItem {
     property: CustomMetadataProperty;
-    value?: string;
+    __typename?: string;
     values?: string[];
+}
+
+export interface Copyright {
+    status: string;
+    notice: string;
+}
+
+export interface Tag {
+    value: string;
+    source: string;
+}
+
+export interface License {
+    id: string;
+    title: string;
 }
 
 export interface FrontifyAsset {
     id: string;
-    title: string;
-    previewUrl?: string;
+    title?: string;
+    description?: string;
+    status?: string;
+    createdAt?: string;
+    modifiedAt?: string;
+    expiresAt?: string;
+    copyright?: Copyright;
     customMetadata?: CustomMetadataItem[];
+    tags?: Tag[];
+    licenses?: License[];
+    previewUrl?: string;
+    downloadUrl?: string;
+    alternativeText?: string;
+    duration?: string;
 }
 
-export interface AssetWithLocation extends FrontifyAsset {
-    latitude: number;
-    longitude: number;
+export interface FrontifyCollection {
+    id: string;
+    name: string;
+    assetCount: number;
 }
 
-export interface FrontifyAssetsResponse {
-    data: {
-        library: {
-            assets: {
-                total: number;
-                items: FrontifyAsset[];
-            };
-        };
-    };
+export interface AssetForExport {
+    id: string;
+    title: string;
+    description: string;
+    status: string;
+    createdAt: string;
+    modifiedAt: string;
+    expiresAt: string;
+    copyrightStatus: string;
+    copyrightNotice: string;
+    previewUrl: string;
+    downloadUrl: string;
+    alternativeText: string;
+    duration: string;
+    tags: string;
+    licenses: string;
+    [key: string]: string | number; // Allow dynamic custom metadata fields
 }

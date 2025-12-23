@@ -1,12 +1,11 @@
 import 'tailwindcss/tailwind.css';
-import 'leaflet/dist/leaflet.css';
 
 import { defineBlock } from '@frontify/guideline-blocks-settings';
 
-import { AnExampleBlock } from './Block';
+import { CollectionExportBlock } from './Block';
 import { settings } from './settings';
 
 export default defineBlock({
-    block: AnExampleBlock,
+    block: CollectionExportBlock,
     settings,
 });

@@ -1,120 +1,116 @@
 import { useBlockSettings } from '@frontify/app-bridge';
 import { type BlockProps } from '@frontify/guideline-blocks-settings';
 import { useEffect, useState, type FC } from 'react';
-import { AssetMap } from './AssetMap';
 import { FrontifyService } from './frontifyService';
-import type { Settings, AssetWithLocation } from './types';
+import type { Settings, FrontifyCollection } from './types';
 
-export const AnExampleBlock: FC<BlockProps> = ({ appBridge }) => {
+export const CollectionExportBlock: FC<BlockProps> = ({ appBridge }) => {
     const [blockSettings] = useBlockSettings<Settings>(appBridge);
-    const [assets, setAssets] = useState<AssetWithLocation[]>([]);
+    const [collections, setCollections] = useState<FrontifyCollection[]>([]);
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
+    const [exportingId, setExportingId] = useState<string | null>(null);
 
     useEffect(() => {
-        const loadAssets = async () => {
+        const loadCollections = async () => {
             setLoading(true);
             setError(null);
 
             try {
-                console.log('=== FRONTIFY ASSET MAP DEBUG INFO ===');
+                console.log('=== FRONTIFY COLLECTION EXPORT DEBUG INFO ===');
                 console.log('Environment variables:', {
                     domain: import.meta.env.VITE_FRONTIFY_DOMAIN,
                     hasToken: !!import.meta.env.VITE_FRONTIFY_BEARER_TOKEN,
                     libraryId: import.meta.env.VITE_LIBRARY_ID,
-                    latKey: import.meta.env.VITE_LATITUDE_KEY,
-                    lonKey: import.meta.env.VITE_LONGITUDE_KEY,
                 });
 
                 const service = new FrontifyService();
-                const metadataKeys = service.getMetadataKeys();
                 
-                console.log('Service initialized with library ID:', service.getLibraryId());
-                console.log('Looking for metadata keys:', metadataKeys);
+                console.log('Fetching collections from Frontify library...');
+                const allCollections = await service.fetchAllCollections();
+                console.log(`Fetched ${allCollections.length} collections`);
 
-                // Fetch all assets
-                console.log('Fetching assets from Frontify...');
-                const allAssets = await service.fetchAllAssets();
-                console.log(`Fetched ${allAssets.length} total assets from library`);
-
-                // Log first few assets to see their structure
-                if (allAssets && allAssets.length > 0) {
-                    console.log('Sample asset structure:', {
-                        id: allAssets[0].id,
-                        title: allAssets[0].title,
-                        hasPreviewUrl: !!allAssets[0].previewUrl,
-                        customMetadata: allAssets[0].customMetadata,
-                    });
-                    
-                    // Check what metadata property names exist across all assets
-                    const allMetadataKeys = new Set<string>();
-                    allAssets.forEach(asset => {
-                        if (asset && asset.customMetadata && Array.isArray(asset.customMetadata)) {
-                            asset.customMetadata.forEach(m => {
-                                if (m && m.property && m.property.name) {
-                                    allMetadataKeys.add(m.property.name);
-                                }
-                            });
-                        }
-                    });
-                    console.log('All custom metadata property names found in assets:', Array.from(allMetadataKeys));
-                } else {
-                    console.log('No assets returned or assets is empty/undefined:', allAssets);
+                if (allCollections.length > 0) {
+                    console.log('Sample collection:', allCollections[0]);
                 }
 
-                // Extract assets with valid location metadata
-                const assetsWithLocation = service.extractAssetsWithLocation(allAssets);
-                console.log(`Found ${assetsWithLocation.length} assets with valid location data`);
+                setCollections(allCollections);
 
-                if (assetsWithLocation.length > 0) {
-                    console.log('Sample asset with location:', {
-                        title: assetsWithLocation[0].title,
-                        latitude: assetsWithLocation[0].latitude,
-                        longitude: assetsWithLocation[0].longitude,
-                    });
-                }
-
-                setAssets(assetsWithLocation);
-
-                if (assetsWithLocation.length === 0 && allAssets.length > 0) {
+                if (allCollections.length === 0) {
                     setError(
-                        `Found ${allAssets.length} total assets, but none have valid location metadata. ` +
-                        `Make sure your assets have "${metadataKeys.latitude}" and ` +
-                        `"${metadataKeys.longitude}" custom metadata fields configured in Frontify. ` +
-                        `Check the browser console for a list of available metadata keys.`
-                    );
-                } else if (allAssets.length === 0) {
-                    setError(
-                        `No assets found in the specified library (ID: ${service.getLibraryId()}). ` +
-                        `Please verify the library ID is correct and contains assets.`
+                        'No collections found in this library. Please create collections in your Frontify library and add assets to them.'
                     );
                 }
 
                 console.log('=== END DEBUG INFO ===');
             } catch (err) {
-                console.error('Error loading assets:', err);
+                console.error('Error loading collections:', err);
                 setError(
                     err instanceof Error
-                        ? `Failed to load assets: ${err.message}`
-                        : 'Failed to load assets from Frontify. Please check your environment configuration.'
+                        ? `Failed to load collections: ${err.message}`
+                        : 'Failed to load collections from Frontify. Please check your environment configuration.'
                 );
             } finally {
                 setLoading(false);
             }
         };
 
-        loadAssets();
-    }, []); // Only run once on mount
+        loadCollections();
+    }, []);
+
+    const handleExport = async (collection: FrontifyCollection) => {
+        setExportingId(collection.id);
+        setError(null);
+
+        try {
+            console.log(`Exporting collection: ${collection.name} (${collection.id})`);
+            
+            const service = new FrontifyService();
+            const assets = await service.fetchAllCollectionAssets(collection.id);
+            
+            console.log(`Fetched ${assets.length} assets from collection`);
+
+            if (assets.length === 0) {
+                throw new Error('Collection has no assets to export');
+            }
+
+            service.exportToCSV(assets, collection.name);
+            
+            console.log('CSV export completed successfully');
+        } catch (err) {
+            console.error('Error exporting collection:', err);
+            setError(
+                err instanceof Error
+                    ? `Failed to export: ${err.message}`
+                    : 'Failed to export collection. Please try again.'
+            );
+        } finally {
+            setExportingId(null);
+        }
+    };
+
+    const sortedCollections = [...collections].sort((a, b) => {
+        if (blockSettings.sortBy === 'name') {
+            return a.name.localeCompare(b.name);
+        } else if (blockSettings.sortBy === 'count') {
+            return b.assetCount - a.assetCount;
+        }
+        return 0;
+    });
 
     return (
         <div className="tw-p-6">
+            <div className="tw-mb-6">
+                <h2 className="tw-text-2xl tw-font-bold tw-mb-2">Collection Metadata Export</h2>
+                <p className="tw-text-gray-600">
+                    Export asset metadata from your Frontify collections as CSV files, including preview URLs and custom metadata fields.
+                </p>
+            </div>
+
             {loading && (
-                <div 
-                    className="tw-flex tw-flex-col tw-items-center tw-justify-center tw-bg-gray-50 tw-rounded-lg"
-                    style={{ height: `${parseInt(blockSettings.mapHeight) || 600}px` }}
-                >
+                <div className="tw-flex tw-flex-col tw-items-center tw-justify-center tw-bg-gray-50 tw-rounded-lg tw-py-16">
                     <div className="tw-animate-spin tw-rounded-full tw-h-12 tw-w-12 tw-border-b-2 tw-border-blue-600 tw-mb-4"></div>
-                    <p className="tw-text-gray-600">Loading assets from Frontify...</p>
+                    <p className="tw-text-gray-600">Loading collections from Frontify...</p>
                 </div>
             )}
 
@@ -125,29 +121,94 @@ export const AnExampleBlock: FC<BlockProps> = ({ appBridge }) => {
                 </div>
             )}
 
-            {!loading && !error && assets.length > 0 && (
-                <AssetMap 
-                    assets={assets} 
-                    defaultZoom={parseInt(blockSettings.defaultZoom) || 2}
-                    mapHeight={parseInt(blockSettings.mapHeight) || 600}
-                    mapStyle={blockSettings.mapStyle}
-                    appBridge={appBridge}
-                />
+            {!loading && !error && collections.length > 0 && (
+                <div className="tw-space-y-3">
+                    {sortedCollections.map((collection) => (
+                        <div
+                            key={collection.id}
+                            className="tw-flex tw-items-center tw-justify-between tw-gap-4 tw-p-4 tw-bg-white tw-border tw-border-gray-300 tw-rounded-lg hover:tw-border-blue-400 tw-shadow-sm hover:tw-shadow-md tw-transition-all"
+                        >
+                            <div className="tw-flex-1 tw-min-w-0">
+                                <h3 className="tw-font-semibold tw-text-lg tw-mb-1 tw-text-gray-900">{collection.name}</h3>
+                                {blockSettings.showAssetCount && (
+                                    <p className="tw-text-sm tw-text-gray-600">
+                                        {collection.assetCount} {collection.assetCount === 1 ? 'asset' : 'assets'}
+                                    </p>
+                                )}
+                            </div>
+                            <button
+                                onClick={() => handleExport(collection)}
+                                disabled={exportingId === collection.id}
+                                className={`
+                                    tw-px-6 tw-py-3 tw-rounded-lg tw-font-semibold tw-text-sm tw-transition-all tw-whitespace-nowrap tw-flex-shrink-0
+                                    ${
+                                        exportingId === collection.id
+                                            ? 'tw-bg-gray-400 tw-text-gray-700 tw-cursor-not-allowed'
+                                            : 'tw-bg-blue-600 tw-text-white hover:tw-bg-blue-700 tw-shadow-sm hover:tw-shadow-md'
+                                    }
+                                `}
+                            >
+                                {exportingId === collection.id ? (
+                                    <span className="tw-flex tw-items-center tw-gap-2">
+                                        <svg
+                                            className="tw-animate-spin tw-h-4 tw-w-4"
+                                            xmlns="http://www.w3.org/2000/svg"
+                                            fill="none"
+                                            viewBox="0 0 24 24"
+                                        >
+                                            <circle
+                                                className="tw-opacity-25"
+                                                cx="12"
+                                                cy="12"
+                                                r="10"
+                                                stroke="currentColor"
+                                                strokeWidth="4"
+                                            ></circle>
+                                            <path
+                                                className="tw-opacity-75"
+                                                fill="currentColor"
+                                                d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+                                            ></path>
+                                        </svg>
+                                        Exporting...
+                                    </span>
+                                ) : (
+                                    <span className="tw-flex tw-items-center tw-gap-2">
+                                        <svg 
+                                            className="tw-h-4 tw-w-4" 
+                                            fill="none" 
+                                            stroke="currentColor" 
+                                            viewBox="0 0 24 24"
+                                        >
+                                            <path 
+                                                strokeLinecap="round" 
+                                                strokeLinejoin="round" 
+                                                strokeWidth={2} 
+                                                d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" 
+                                            />
+                                        </svg>
+                                        Export CSV
+                                    </span>
+                                )}
+                            </button>
+                        </div>
+                    ))}
+                </div>
             )}
 
-            {!loading && !error && assets.length === 0 && (
+            {!loading && !error && collections.length === 0 && (
                 <div className="tw-bg-blue-50 tw-border tw-border-blue-200 tw-rounded-lg tw-p-6">
-                    <h3 className="tw-text-blue-800 tw-font-semibold tw-mb-2">No Assets Found</h3>
+                    <h3 className="tw-text-blue-800 tw-font-semibold tw-mb-2">No Collections Found</h3>
                     <p className="tw-text-blue-600 tw-mb-4">
-                        No assets with location metadata were found in your Frontify library.
+                        No collections were found in your Frontify instance.
                     </p>
                     <div className="tw-text-sm tw-text-blue-700">
-                        <p className="tw-font-semibold tw-mb-2">To add location data to your assets:</p>
+                        <p className="tw-font-semibold tw-mb-2">To create collections:</p>
                         <ol className="tw-list-decimal tw-list-inside tw-space-y-1">
                             <li>Go to your Frontify Media Library</li>
-                            <li>Select an asset</li>
-                            <li>Add custom metadata fields for latitude and longitude</li>
-                            <li>Enter valid coordinates (e.g., 40.7128 for latitude, -74.0060 for longitude)</li>
+                            <li>Create a new collection</li>
+                            <li>Add assets to the collection</li>
+                            <li>Refresh this page</li>
                         </ol>
                     </div>
                 </div>
