@@ -1,6 +1,9 @@
 export interface Settings {
     showAssetCount: boolean;
     sortBy: string;
+    primaryColor?: { red: number; green: number; blue: number; alpha: number };
+    textColor?: { red: number; green: number; blue: number; alpha: number };
+    borderColor?: { red: number; green: number; blue: number; alpha: number };
 }
 
 export interface CustomMetadataProperty {

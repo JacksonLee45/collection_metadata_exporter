@@ -19,5 +19,24 @@ export const settings = defineSettings({
             ],
         },
     ],
-    style: [],
+    style: [
+        {
+            id: 'primaryColor',
+            type: 'colorInput',
+            label: 'Primary Color (Buttons)',
+            clearable: false,
+        },
+        {
+            id: 'textColor',
+            type: 'colorInput',
+            label: 'Text Color',
+            clearable: false,
+        },
+        {
+            id: 'borderColor',
+            type: 'colorInput',
+            label: 'Border Color',
+            clearable: false,
+        },
+    ],
 });

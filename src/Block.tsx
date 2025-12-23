@@ -1,4 +1,4 @@
-import { useBlockSettings } from '@frontify/app-bridge';
+import { useBlockSettings, rgbObjectToRgbString } from '@frontify/app-bridge';
 import { type BlockProps } from '@frontify/guideline-blocks-settings';
 import { useEffect, useState, type FC } from 'react';
 import { FrontifyService } from './frontifyService';
@@ -9,8 +9,30 @@ export const CollectionExportBlock: FC<BlockProps> = ({ appBridge }) => {
     const [collections, setCollections] = useState<FrontifyCollection[]>([]);
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
-    const [exportingId, setExportingId] = useState<string | null>(null);
     const [selectedCollectionId, setSelectedCollectionId] = useState<string>('');
+    const [isExporting, setIsExporting] = useState(false);
+
+    // Convert Frontify color objects to CSS strings, with fallbacks
+    const primaryColor = blockSettings.primaryColor 
+        ? rgbObjectToRgbString(blockSettings.primaryColor) 
+        : '#2563eb'; // fallback to blue-600
+    
+    const textColor = blockSettings.textColor 
+        ? rgbObjectToRgbString(blockSettings.textColor) 
+        : '#4b5563'; // fallback to gray-600
+    
+    const borderColor = blockSettings.borderColor 
+        ? rgbObjectToRgbString(blockSettings.borderColor) 
+        : '#d1d5db'; // fallback to gray-300
+
+    // Calculate hover color (slightly darker) - simple approach
+    const getPrimaryHoverColor = () => {
+        if (!blockSettings.primaryColor) return '#1d4ed8'; // blue-700 fallback
+        const { red, green, blue, alpha } = blockSettings.primaryColor;
+        return `rgba(${Math.max(0, red - 20)}, ${Math.max(0, green - 20)}, ${Math.max(0, blue - 20)}, ${alpha})`;
+    };
+
+    const primaryHoverColor = getPrimaryHoverColor();
 
     useEffect(() => {
         const loadCollections = async () => {
@@ -59,8 +81,13 @@ export const CollectionExportBlock: FC<BlockProps> = ({ appBridge }) => {
         loadCollections();
     }, []);
 
-    const handleExport = async (collection: FrontifyCollection) => {
-        setExportingId(collection.id);
+    const handleExport = async () => {
+        if (!selectedCollectionId) return;
+        
+        const collection = collections.find(c => c.id === selectedCollectionId);
+        if (!collection) return;
+
+        setIsExporting(true);
         setError(null);
 
         try {
@@ -86,7 +113,7 @@ export const CollectionExportBlock: FC<BlockProps> = ({ appBridge }) => {
                     : 'Failed to export collection. Please try again.'
             );
         } finally {
-            setExportingId(null);
+            setIsExporting(false);
         }
     };
 
@@ -99,51 +126,66 @@ export const CollectionExportBlock: FC<BlockProps> = ({ appBridge }) => {
         return 0;
     });
 
-    const selectedCollection = collections.find(c => c.id === selectedCollectionId);
-
-    const handleExportSelected = () => {
-        if (selectedCollection) {
-            handleExport(selectedCollection);
-        }
-    };
-
     return (
-        <div className="tw-p-6 tw-max-w-2xl">
+        <div className="tw-p-6">
             <div className="tw-mb-6">
-                <h2 className="tw-text-2xl tw-font-bold tw-mb-2">Collection Metadata Export</h2>
-                <p className="tw-text-gray-600">
+                <h2 className="tw-text-2xl tw-font-bold tw-mb-2" style={{ color: textColor }}>
+                    Collection Metadata Export
+                </h2>
+                <p style={{ color: textColor, opacity: 0.8 }}>
                     Export asset metadata from your Frontify collections as CSV files, including preview URLs and custom metadata fields.
                 </p>
             </div>
 
             {loading && (
                 <div className="tw-flex tw-flex-col tw-items-center tw-justify-center tw-bg-gray-50 tw-rounded-lg tw-py-16">
-                    <div className="tw-animate-spin tw-rounded-full tw-h-12 tw-w-12 tw-border-b-2 tw-border-blue-600 tw-mb-4"></div>
-                    <p className="tw-text-gray-600">Loading collections from Frontify...</p>
+                    <div 
+                        className="tw-animate-spin tw-rounded-full tw-h-12 tw-w-12 tw-border-b-2 tw-mb-4"
+                        style={{ borderColor: primaryColor }}
+                    ></div>
+                    <p style={{ color: textColor }}>Loading collections from Frontify...</p>
                 </div>
             )}
 
             {error && (
-                <div className="tw-bg-red-50 tw-border tw-border-red-200 tw-rounded-lg tw-p-4 tw-mb-6">
-                    <h3 className="tw-text-red-800 tw-font-semibold tw-mb-2">Error</h3>
-                    <p className="tw-text-red-600">{error}</p>
+                <div 
+                    className="tw-border tw-rounded-lg tw-p-4 tw-mb-6"
+                    style={{ 
+                        backgroundColor: 'rgba(254, 226, 226, 0.5)',
+                        borderColor: 'rgba(248, 113, 113, 0.5)'
+                    }}
+                >
+                    <h3 className="tw-font-semibold tw-mb-2" style={{ color: '#991b1b' }}>Error</h3>
+                    <p style={{ color: '#dc2626' }}>{error}</p>
                 </div>
             )}
 
             {!loading && !error && collections.length > 0 && (
                 <div className="tw-space-y-6">
-                    {/* Dropdown */}
+                    {/* Dropdown selector */}
                     <div>
-                        <label htmlFor="collection-select" className="tw-block tw-text-sm tw-font-medium tw-text-gray-700 tw-mb-2">
-                            Select Collection
+                        <label 
+                            className="tw-block tw-font-semibold tw-mb-2"
+                            style={{ color: textColor }}
+                        >
+                            Select a Collection
                         </label>
                         <select
-                            id="collection-select"
                             value={selectedCollectionId}
                             onChange={(e) => setSelectedCollectionId(e.target.value)}
-                            className="tw-block tw-w-full tw-px-4 tw-py-3 tw-text-base tw-border tw-border-gray-300 tw-rounded-lg tw-shadow-sm focus:tw-outline-none focus:tw-ring-2 focus:tw-ring-blue-500 focus:tw-border-blue-500 tw-bg-white"
+                            className="tw-w-full tw-px-4 tw-py-3 tw-rounded-lg tw-text-base tw-transition-all focus:tw-outline-none focus:tw-ring-2"
+                            style={{
+                                border: `2px solid ${borderColor}`,
+                                color: textColor,
+                            }}
+                            onFocus={(e) => {
+                                e.currentTarget.style.borderColor = primaryColor;
+                            }}
+                            onBlur={(e) => {
+                                e.currentTarget.style.borderColor = borderColor;
+                            }}
                         >
-                            <option value="">-- Select a collection --</option>
+                            <option value="">-- Choose a collection --</option>
                             {sortedCollections.map((collection) => (
                                 <option key={collection.id} value={collection.id}>
                                     {collection.name} ({collection.assetCount} {collection.assetCount === 1 ? 'asset' : 'assets'})
@@ -152,144 +194,154 @@ export const CollectionExportBlock: FC<BlockProps> = ({ appBridge }) => {
                         </select>
                     </div>
 
-                    {/* Collection Stats Panel */}
-                    {selectedCollection && (
-                        <div className="tw-bg-white tw-border tw-border-gray-200 tw-rounded-lg tw-p-6 tw-shadow-sm">
-                            <div className="tw-mb-4">
-                                <h3 className="tw-text-lg tw-font-semibold tw-text-gray-900 tw-mb-3">
-                                    {selectedCollection.name}
+                    {/* Collection details */}
+                    {selectedCollectionId && (() => {
+                        const selectedCollection = collections.find(c => c.id === selectedCollectionId);
+                        if (!selectedCollection) return null;
+
+                        return (
+                            <div 
+                                className="tw-border tw-rounded-lg tw-p-6 tw-transition-all"
+                                style={{ 
+                                    borderColor: borderColor,
+                                    backgroundColor: 'rgba(255, 255, 255, 0.5)',
+                                }}
+                            >
+                                <h3 
+                                    className="tw-text-xl tw-font-bold tw-mb-4"
+                                    style={{ color: textColor }}
+                                >
+                                    Collection Details
                                 </h3>
                                 
-                                <div className="tw-space-y-2">
-                                    <div className="tw-flex tw-items-center tw-gap-2 tw-text-gray-700">
-                                        <svg 
-                                            className="tw-h-5 tw-w-5 tw-text-gray-400" 
-                                            fill="none" 
-                                            stroke="currentColor" 
-                                            viewBox="0 0 24 24"
+                                <div className="tw-space-y-3 tw-mb-6">
+                                    <div>
+                                        <span 
+                                            className="tw-font-semibold"
+                                            style={{ color: textColor }}
                                         >
-                                            <path 
-                                                strokeLinecap="round" 
-                                                strokeLinejoin="round" 
-                                                strokeWidth={2} 
-                                                d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" 
-                                            />
-                                        </svg>
-                                        <span className="tw-text-sm">
-                                            <span className="tw-font-medium">Assets:</span> {selectedCollection.assetCount} {selectedCollection.assetCount === 1 ? 'item' : 'items'}
+                                            Name:{' '}
+                                        </span>
+                                        <span style={{ color: textColor, opacity: 0.8 }}>
+                                            {selectedCollection.name}
                                         </span>
                                     </div>
                                     
-                                    <div className="tw-flex tw-items-center tw-gap-2 tw-text-gray-700">
-                                        <svg 
-                                            className="tw-h-5 tw-w-5 tw-text-gray-400" 
-                                            fill="none" 
-                                            stroke="currentColor" 
-                                            viewBox="0 0 24 24"
+                                    <div>
+                                        <span 
+                                            className="tw-font-semibold"
+                                            style={{ color: textColor }}
                                         >
-                                            <path 
-                                                strokeLinecap="round" 
-                                                strokeLinejoin="round" 
-                                                strokeWidth={2} 
-                                                d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" 
-                                            />
-                                        </svg>
-                                        <span className="tw-text-sm">
-                                            <span className="tw-font-medium">Export includes:</span> All metadata, preview URLs, custom fields
+                                            Total Assets:{' '}
+                                        </span>
+                                        <span style={{ color: textColor, opacity: 0.8 }}>
+                                            {selectedCollection.assetCount}
+                                        </span>
+                                    </div>
+                                    
+                                    <div>
+                                        <span 
+                                            className="tw-font-semibold"
+                                            style={{ color: textColor }}
+                                        >
+                                            Export Format:{' '}
+                                        </span>
+                                        <span style={{ color: textColor, opacity: 0.8 }}>
+                                            CSV (includes all metadata fields, preview URLs, and custom fields)
                                         </span>
                                     </div>
                                 </div>
+
+                                <button
+                                    onClick={handleExport}
+                                    disabled={isExporting}
+                                    className="tw-px-8 tw-py-4 tw-rounded-lg tw-font-semibold tw-text-base tw-transition-all tw-shadow-md hover:tw-shadow-lg tw-w-full"
+                                    style={{
+                                        backgroundColor: isExporting ? '#9ca3af' : primaryColor,
+                                        color: 'white',
+                                        cursor: isExporting ? 'not-allowed' : 'pointer',
+                                    }}
+                                    onMouseEnter={(e) => {
+                                        if (!isExporting) {
+                                            e.currentTarget.style.backgroundColor = primaryHoverColor;
+                                        }
+                                    }}
+                                    onMouseLeave={(e) => {
+                                        if (!isExporting) {
+                                            e.currentTarget.style.backgroundColor = primaryColor;
+                                        }
+                                    }}
+                                >
+                                    {isExporting ? (
+                                        <span className="tw-flex tw-items-center tw-justify-center tw-gap-2">
+                                            <svg
+                                                className="tw-animate-spin tw-h-5 tw-w-5"
+                                                xmlns="http://www.w3.org/2000/svg"
+                                                fill="none"
+                                                viewBox="0 0 24 24"
+                                            >
+                                                <circle
+                                                    className="tw-opacity-25"
+                                                    cx="12"
+                                                    cy="12"
+                                                    r="10"
+                                                    stroke="currentColor"
+                                                    strokeWidth="4"
+                                                ></circle>
+                                                <path
+                                                    className="tw-opacity-75"
+                                                    fill="currentColor"
+                                                    d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+                                                ></path>
+                                            </svg>
+                                            Exporting...
+                                        </span>
+                                    ) : (
+                                        <span className="tw-flex tw-items-center tw-justify-center tw-gap-2">
+                                            <svg 
+                                                className="tw-h-5 tw-w-5" 
+                                                fill="none" 
+                                                stroke="currentColor" 
+                                                viewBox="0 0 24 24"
+                                            >
+                                                <path 
+                                                    strokeLinecap="round" 
+                                                    strokeLinejoin="round" 
+                                                    strokeWidth={2} 
+                                                    d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" 
+                                                />
+                                            </svg>
+                                            Export Collection as CSV
+                                        </span>
+                                    )}
+                                </button>
                             </div>
-
-                            <button
-                                onClick={handleExportSelected}
-                                disabled={exportingId === selectedCollection.id}
-                                className={`
-                                    tw-w-full tw-px-6 tw-py-3 tw-rounded-lg tw-font-semibold tw-text-base tw-transition-all
-                                    ${
-                                        exportingId === selectedCollection.id
-                                            ? 'tw-bg-gray-400 tw-text-gray-700 tw-cursor-not-allowed'
-                                            : 'tw-bg-blue-600 tw-text-white hover:tw-bg-blue-700 tw-shadow-sm hover:tw-shadow-md'
-                                    }
-                                `}
-                            >
-                                {exportingId === selectedCollection.id ? (
-                                    <span className="tw-flex tw-items-center tw-justify-center tw-gap-2">
-                                        <svg
-                                            className="tw-animate-spin tw-h-5 tw-w-5"
-                                            xmlns="http://www.w3.org/2000/svg"
-                                            fill="none"
-                                            viewBox="0 0 24 24"
-                                        >
-                                            <circle
-                                                className="tw-opacity-25"
-                                                cx="12"
-                                                cy="12"
-                                                r="10"
-                                                stroke="currentColor"
-                                                strokeWidth="4"
-                                            ></circle>
-                                            <path
-                                                className="tw-opacity-75"
-                                                fill="currentColor"
-                                                d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
-                                            ></path>
-                                        </svg>
-                                        Exporting...
-                                    </span>
-                                ) : (
-                                    <span className="tw-flex tw-items-center tw-justify-center tw-gap-2">
-                                        <svg 
-                                            className="tw-h-5 tw-w-5" 
-                                            fill="none" 
-                                            stroke="currentColor" 
-                                            viewBox="0 0 24 24"
-                                        >
-                                            <path 
-                                                strokeLinecap="round" 
-                                                strokeLinejoin="round" 
-                                                strokeWidth={2} 
-                                                d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" 
-                                            />
-                                        </svg>
-                                        Export CSV with All Metadata
-                                    </span>
-                                )}
-                            </button>
-                        </div>
-                    )}
-
-                    {/* Placeholder when no collection selected */}
-                    {!selectedCollection && (
-                        <div className="tw-bg-gray-50 tw-border tw-border-gray-200 tw-rounded-lg tw-p-8 tw-text-center">
-                            <svg 
-                                className="tw-mx-auto tw-h-12 tw-w-12 tw-text-gray-400 tw-mb-3" 
-                                fill="none" 
-                                stroke="currentColor" 
-                                viewBox="0 0 24 24"
-                            >
-                                <path 
-                                    strokeLinecap="round" 
-                                    strokeLinejoin="round" 
-                                    strokeWidth={2} 
-                                    d="M9 13h6m-3-3v6m5 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" 
-                                />
-                            </svg>
-                            <p className="tw-text-gray-600">
-                                Select a collection above to view details and export
-                            </p>
-                        </div>
-                    )}
+                        );
+                    })()}
                 </div>
             )}
 
             {!loading && !error && collections.length === 0 && (
-                <div className="tw-bg-blue-50 tw-border tw-border-blue-200 tw-rounded-lg tw-p-6">
-                    <h3 className="tw-text-blue-800 tw-font-semibold tw-mb-2">No Collections Found</h3>
-                    <p className="tw-text-blue-600 tw-mb-4">
+                <div 
+                    className="tw-border tw-rounded-lg tw-p-6"
+                    style={{
+                        backgroundColor: 'rgba(219, 234, 254, 0.5)',
+                        borderColor: 'rgba(147, 197, 253, 0.5)',
+                    }}
+                >
+                    <h3 
+                        className="tw-font-semibold tw-mb-2"
+                        style={{ color: '#1e40af' }}
+                    >
+                        No Collections Found
+                    </h3>
+                    <p 
+                        className="tw-mb-4"
+                        style={{ color: '#2563eb' }}
+                    >
                         No collections were found in your Frontify instance.
                     </p>
-                    <div className="tw-text-sm tw-text-blue-700">
+                    <div className="tw-text-sm" style={{ color: '#1d4ed8' }}>
                         <p className="tw-font-semibold tw-mb-2">To create collections:</p>
                         <ol className="tw-list-decimal tw-list-inside tw-space-y-1">
                             <li>Go to your Frontify Media Library</li>
