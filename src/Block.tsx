@@ -10,6 +10,7 @@ export const CollectionExportBlock: FC<BlockProps> = ({ appBridge }) => {
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
     const [exportingId, setExportingId] = useState<string | null>(null);
+    const [selectedCollectionId, setSelectedCollectionId] = useState<string>('');
 
     useEffect(() => {
         const loadCollections = async () => {
@@ -98,8 +99,16 @@ export const CollectionExportBlock: FC<BlockProps> = ({ appBridge }) => {
         return 0;
     });
 
+    const selectedCollection = collections.find(c => c.id === selectedCollectionId);
+
+    const handleExportSelected = () => {
+        if (selectedCollection) {
+            handleExport(selectedCollection);
+        }
+    };
+
     return (
-        <div className="tw-p-6">
+        <div className="tw-p-6 tw-max-w-2xl">
             <div className="tw-mb-6">
                 <h2 className="tw-text-2xl tw-font-bold tw-mb-2">Collection Metadata Export</h2>
                 <p className="tw-text-gray-600">
@@ -122,36 +131,92 @@ export const CollectionExportBlock: FC<BlockProps> = ({ appBridge }) => {
             )}
 
             {!loading && !error && collections.length > 0 && (
-                <div className="tw-space-y-3">
-                    {sortedCollections.map((collection) => (
-                        <div
-                            key={collection.id}
-                            className="tw-flex tw-items-center tw-justify-between tw-gap-4 tw-p-4 tw-bg-white tw-border tw-border-gray-300 tw-rounded-lg hover:tw-border-blue-400 tw-shadow-sm hover:tw-shadow-md tw-transition-all"
+                <div className="tw-space-y-6">
+                    {/* Dropdown */}
+                    <div>
+                        <label htmlFor="collection-select" className="tw-block tw-text-sm tw-font-medium tw-text-gray-700 tw-mb-2">
+                            Select Collection
+                        </label>
+                        <select
+                            id="collection-select"
+                            value={selectedCollectionId}
+                            onChange={(e) => setSelectedCollectionId(e.target.value)}
+                            className="tw-block tw-w-full tw-px-4 tw-py-3 tw-text-base tw-border tw-border-gray-300 tw-rounded-lg tw-shadow-sm focus:tw-outline-none focus:tw-ring-2 focus:tw-ring-blue-500 focus:tw-border-blue-500 tw-bg-white"
                         >
-                            <div className="tw-flex-1 tw-min-w-0">
-                                <h3 className="tw-font-semibold tw-text-lg tw-mb-1 tw-text-gray-900">{collection.name}</h3>
-                                {blockSettings.showAssetCount && (
-                                    <p className="tw-text-sm tw-text-gray-600">
-                                        {collection.assetCount} {collection.assetCount === 1 ? 'asset' : 'assets'}
-                                    </p>
-                                )}
+                            <option value="">-- Select a collection --</option>
+                            {sortedCollections.map((collection) => (
+                                <option key={collection.id} value={collection.id}>
+                                    {collection.name} ({collection.assetCount} {collection.assetCount === 1 ? 'asset' : 'assets'})
+                                </option>
+                            ))}
+                        </select>
+                    </div>
+
+                    {/* Collection Stats Panel */}
+                    {selectedCollection && (
+                        <div className="tw-bg-white tw-border tw-border-gray-200 tw-rounded-lg tw-p-6 tw-shadow-sm">
+                            <div className="tw-mb-4">
+                                <h3 className="tw-text-lg tw-font-semibold tw-text-gray-900 tw-mb-3">
+                                    {selectedCollection.name}
+                                </h3>
+                                
+                                <div className="tw-space-y-2">
+                                    <div className="tw-flex tw-items-center tw-gap-2 tw-text-gray-700">
+                                        <svg 
+                                            className="tw-h-5 tw-w-5 tw-text-gray-400" 
+                                            fill="none" 
+                                            stroke="currentColor" 
+                                            viewBox="0 0 24 24"
+                                        >
+                                            <path 
+                                                strokeLinecap="round" 
+                                                strokeLinejoin="round" 
+                                                strokeWidth={2} 
+                                                d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" 
+                                            />
+                                        </svg>
+                                        <span className="tw-text-sm">
+                                            <span className="tw-font-medium">Assets:</span> {selectedCollection.assetCount} {selectedCollection.assetCount === 1 ? 'item' : 'items'}
+                                        </span>
+                                    </div>
+                                    
+                                    <div className="tw-flex tw-items-center tw-gap-2 tw-text-gray-700">
+                                        <svg 
+                                            className="tw-h-5 tw-w-5 tw-text-gray-400" 
+                                            fill="none" 
+                                            stroke="currentColor" 
+                                            viewBox="0 0 24 24"
+                                        >
+                                            <path 
+                                                strokeLinecap="round" 
+                                                strokeLinejoin="round" 
+                                                strokeWidth={2} 
+                                                d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" 
+                                            />
+                                        </svg>
+                                        <span className="tw-text-sm">
+                                            <span className="tw-font-medium">Export includes:</span> All metadata, preview URLs, custom fields
+                                        </span>
+                                    </div>
+                                </div>
                             </div>
+
                             <button
-                                onClick={() => handleExport(collection)}
-                                disabled={exportingId === collection.id}
+                                onClick={handleExportSelected}
+                                disabled={exportingId === selectedCollection.id}
                                 className={`
-                                    tw-px-6 tw-py-3 tw-rounded-lg tw-font-semibold tw-text-sm tw-transition-all tw-whitespace-nowrap tw-flex-shrink-0
+                                    tw-w-full tw-px-6 tw-py-3 tw-rounded-lg tw-font-semibold tw-text-base tw-transition-all
                                     ${
-                                        exportingId === collection.id
+                                        exportingId === selectedCollection.id
                                             ? 'tw-bg-gray-400 tw-text-gray-700 tw-cursor-not-allowed'
                                             : 'tw-bg-blue-600 tw-text-white hover:tw-bg-blue-700 tw-shadow-sm hover:tw-shadow-md'
                                     }
                                 `}
                             >
-                                {exportingId === collection.id ? (
-                                    <span className="tw-flex tw-items-center tw-gap-2">
+                                {exportingId === selectedCollection.id ? (
+                                    <span className="tw-flex tw-items-center tw-justify-center tw-gap-2">
                                         <svg
-                                            className="tw-animate-spin tw-h-4 tw-w-4"
+                                            className="tw-animate-spin tw-h-5 tw-w-5"
                                             xmlns="http://www.w3.org/2000/svg"
                                             fill="none"
                                             viewBox="0 0 24 24"
@@ -173,9 +238,9 @@ export const CollectionExportBlock: FC<BlockProps> = ({ appBridge }) => {
                                         Exporting...
                                     </span>
                                 ) : (
-                                    <span className="tw-flex tw-items-center tw-gap-2">
+                                    <span className="tw-flex tw-items-center tw-justify-center tw-gap-2">
                                         <svg 
-                                            className="tw-h-4 tw-w-4" 
+                                            className="tw-h-5 tw-w-5" 
                                             fill="none" 
                                             stroke="currentColor" 
                                             viewBox="0 0 24 24"
@@ -187,12 +252,34 @@ export const CollectionExportBlock: FC<BlockProps> = ({ appBridge }) => {
                                                 d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" 
                                             />
                                         </svg>
-                                        Export CSV
+                                        Export CSV with All Metadata
                                     </span>
                                 )}
                             </button>
                         </div>
-                    ))}
+                    )}
+
+                    {/* Placeholder when no collection selected */}
+                    {!selectedCollection && (
+                        <div className="tw-bg-gray-50 tw-border tw-border-gray-200 tw-rounded-lg tw-p-8 tw-text-center">
+                            <svg 
+                                className="tw-mx-auto tw-h-12 tw-w-12 tw-text-gray-400 tw-mb-3" 
+                                fill="none" 
+                                stroke="currentColor" 
+                                viewBox="0 0 24 24"
+                            >
+                                <path 
+                                    strokeLinecap="round" 
+                                    strokeLinejoin="round" 
+                                    strokeWidth={2} 
+                                    d="M9 13h6m-3-3v6m5 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" 
+                                />
+                            </svg>
+                            <p className="tw-text-gray-600">
+                                Select a collection above to view details and export
+                            </p>
+                        </div>
+                    )}
                 </div>
             )}
 
