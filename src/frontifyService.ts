@@ -1,5 +1,6 @@
 import type { FrontifyCollection, FrontifyAsset, AssetForExport } from './types';
 
+//Get a list of all collections with their asset counts
 const LIBRARY_COLLECTIONS_QUERY = `
   query GetLibraryCollections($libraryId: ID!) {
     library(id: $libraryId) {
@@ -17,6 +18,7 @@ const LIBRARY_COLLECTIONS_QUERY = `
   }
 `;
 
+//Get just the asset IDs for a specific collection
 const COLLECTION_ASSETS_QUERY = `
   query GetCollectionAssetIds($libraryId: ID!) {
     library(id: $libraryId) {
@@ -35,6 +37,7 @@ const COLLECTION_ASSETS_QUERY = `
   }
 `;
 
+//Get complete metadata for specific assets
 const ASSETS_BY_IDS_QUERY = `
   query GetAssetsByIds($ids: [ID!]!) {
     assets(ids: $ids) {
