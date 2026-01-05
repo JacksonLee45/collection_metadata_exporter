@@ -95,6 +95,11 @@ export const CollectionExportBlock: FC<BlockProps> = ({ appBridge }) => {
             
             const service = new FrontifyService();
             const assets = await service.fetchAllCollectionAssets(collection.id);
+
+            console.log('=== CUSTOM METADATA DEBUG ===');
+            if (assets.length > 0) {
+                console.log('First asset raw customMetadata:', JSON.stringify(assets[0].customMetadata, null, 2));
+            }
             
             console.log(`Fetched ${assets.length} assets from collection`);
 

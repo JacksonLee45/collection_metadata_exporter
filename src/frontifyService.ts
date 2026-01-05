@@ -56,6 +56,10 @@ const ASSETS_BY_IDS_QUERY = `
           id
           name
         }
+        ... on CustomMetadataValue {
+          __typename
+          value
+        }
         ... on CustomMetadataValues {
           __typename
           values
@@ -265,6 +269,32 @@ export class FrontifyService {
         return this.fetchCollectionAssets(collectionId);
     }
 
+    /**
+     * Extract the display value from a custom metadata value.
+     * Handles three cases:
+     * 1. Plain string value (e.g., "Smith Studio")
+     * 2. Object with text property (e.g., { optionId: "...", text: "Original Red" })
+     * 3. Array of values (for CustomMetadataValues type)
+     */
+    private extractMetadataValue(rawValue: any): string {
+        if (rawValue === null || rawValue === undefined) {
+            return '';
+        }
+        
+        // Plain string
+        if (typeof rawValue === 'string') {
+            return rawValue;
+        }
+        
+        // Object with text property (select/dropdown options)
+        if (typeof rawValue === 'object' && rawValue.text) {
+            return rawValue.text;
+        }
+        
+        // Fallback: stringify it
+        return String(rawValue);
+    }
+
     prepareAssetsForExport(assets: FrontifyAsset[]): AssetForExport[] {
         return assets.map(asset => {
             // Add tags as comma-separated string
@@ -297,14 +327,21 @@ export class FrontifyService {
 
             // Add all custom metadata fields dynamically
             if (asset.customMetadata && Array.isArray(asset.customMetadata)) {
-                asset.customMetadata.forEach(metadata => {
+                asset.customMetadata.forEach((metadata: any) => {
                     const fieldName = metadata.property?.name;
                     if (!fieldName) return;
 
-                    // Get values - Frontify uses CustomMetadataValues with __typename
                     let metadataValue = '';
-                    if ('values' in metadata && metadata.values && metadata.values.length > 0) {
-                        metadataValue = metadata.values.join('; ');
+
+                    // Handle CustomMetadataValue (singular) - has "value" field
+                    if ('value' in metadata && metadata.value !== undefined && metadata.value !== null) {
+                        metadataValue = this.extractMetadataValue(metadata.value);
+                    }
+                    // Handle CustomMetadataValues (plural) - has "values" array
+                    else if ('values' in metadata && Array.isArray(metadata.values) && metadata.values.length > 0) {
+                        metadataValue = metadata.values
+                            .map((v: any) => this.extractMetadataValue(v))
+                            .join('; ');
                     }
 
                     // Use the field name as the key (will become CSV header)
