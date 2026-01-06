@@ -1,4 +1,6 @@
 export interface Settings {
+    libraryId: string;
+    bearerToken: string;
     showAssetCount: boolean;
     sortBy: string;
     primaryColor?: { red: number; green: number; blue: number; alpha: number };
@@ -11,10 +13,16 @@ export interface CustomMetadataProperty {
     name: string;
 }
 
+export interface CustomMetadataValue {
+    optionId?: string;
+    text?: string;
+}
+
 export interface CustomMetadataItem {
     property: CustomMetadataProperty;
     __typename?: string;
-    values?: string[];
+    value?: string | CustomMetadataValue;
+    values?: (CustomMetadataValue | string)[];
 }
 
 export interface Copyright {
