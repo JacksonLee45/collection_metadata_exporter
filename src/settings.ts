@@ -14,7 +14,7 @@ export const settings = defineSettings({
             type: 'input',
             label: 'API Bearer Token',
             placeholder: 'Enter your Frontify API token',
-            info: 'Generate a bearer token from your Frontify account settings under Developer > API Tokens.',
+            info: 'Generate a Personal Developer Token by navigating to https://<your-domain>.frontify.com/api/developer/token in your browser. Select scopes: basic:read and basic:write. Use a Service User Token for Production!',
         },
         {
             id: 'showAssetCount',

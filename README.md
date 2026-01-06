@@ -15,7 +15,7 @@ This block solves a common challenge: giving external partners access to detaile
 - **Complete Metadata Export**: Exports all standard fields (title, description, status, dates, copyright) plus all custom metadata fields
 - **Asset URLs**: Includes both preview and download URLs for each asset
 - **Collection Browser**: Clean dropdown interface showing all collections with asset counts
-- **Customizable Styling**: Three color controls let you match your brand
+- **Customizable Styling**: Three color controls let you match your brand guidelines
 - **Dynamic CSV Headers**: Automatically includes columns for all custom metadata fields found in your assets
 - **Sort Options**: Sort collections by name (A-Z) or asset count (high to low)
 
@@ -75,16 +75,6 @@ Colors are then applied via inline styles to maintain specificity:
    ```bash
    npm install
    ```
-3. Configure your Frontify credentials in `.env`:
-   ```bash
-   cp .env.example .env
-   ```
-   Edit `.env` with your values:
-   ```
-   VITE_FRONTIFY_DOMAIN=your-domain.frontify.com
-   VITE_FRONTIFY_BEARER_TOKEN=your_bearer_token_here
-   VITE_LIBRARY_ID=your_library_id_here
-   ```
 
 ## Development
 
@@ -97,6 +87,54 @@ Deploy to Frontify:
 ```bash
 npm run deploy
 ```
+
+## Configuration
+
+All configuration is done through the Frontify block settings panel:
+
+### Main Tab
+
+**Library ID**
+- The ID of your Frontify library containing collections
+- Find this in your library URL or via the GraphQL API
+- Format example: `eyJpZGVudGlmaWVyIjo5ODc2NTQzMjEsInR5cGUiOiJsaWJyYXJ5In0=`
+
+**API Bearer Token**
+- Your Personal Developer Token for API authentication
+- **How to generate:**
+  1. Navigate to `https://<your-domain>.frontify.com/api/developer/token` in your browser
+  2. Click "Create new token"
+  3. Give it a meaningful name (e.g., "Collection Metadata Exporter")
+  4. Select required scopes: `basic:read` and `basic:write`
+  5. Click "Create" and copy the generated token
+  6. Paste the token into this field in the block settings
+- **Important**: Tokens never expire but can be manually revoked at any time
+- **Production use**: For production deployments, contact Frontify support to request a Service User Token
+
+**Show Asset Count**
+- Toggle to show/hide asset counts in the collection dropdown
+- Default: `true`
+
+**Sort Collections By**
+- Choose how collections are sorted in the dropdown
+- Options:
+  - `Name (A-Z)`: Alphabetical by collection name
+  - `Asset Count (High to Low)`: Collections with most assets first
+
+### Style Tab
+
+**Primary Color (Buttons)**
+- Controls the export button background color
+- Picker integrates with your Frontify brand colors
+- Hover state is automatically generated (slightly darker)
+
+**Text Color**
+- Controls all text throughout the block
+- Applied to headings, labels, descriptions, and body text
+
+**Border Color**
+- Controls borders on dropdowns, cards, and dividers
+- Creates visual separation between UI sections
 
 ## Technical Architecture
 
@@ -126,36 +164,17 @@ The exporter dynamically includes all custom metadata fields found in your asset
 if (asset.customMetadata && Array.isArray(asset.customMetadata)) {
     asset.customMetadata.forEach(metadata => {
         const fieldName = metadata.property?.name;
-        if (fieldName && metadata.values) {
-            exportData[fieldName] = metadata.values.join('; ');
+        if (fieldName) {
+            // Handles both single values and arrays
+            exportData[fieldName] = metadata.values 
+                ? metadata.values.join('; ')
+                : metadata.value;
         }
     });
 }
 ```
 
 This means any custom fields configured in Frontify will automatically appear as columns in the exported CSV.
-
-## Configuration
-
-### Block Settings
-
-Configure in the Frontify block settings panel:
-
-**Main Tab:**
-- Show Asset Count: Toggle asset count visibility in dropdown
-- Sort Collections By: Choose name (A-Z) or count (high to low)
-
-**Style Tab:**
-- Primary Color: Button background color
-- Text Color: All text color
-- Border Color: Border and divider color
-
-### Environment Variables
-
-Required in `.env`:
-- `VITE_FRONTIFY_DOMAIN`: Your Frontify domain
-- `VITE_FRONTIFY_BEARER_TOKEN`: API authentication token
-- `VITE_LIBRARY_ID`: The library ID containing your collections
 
 ## Use Case
 
@@ -168,28 +187,40 @@ Built for enabling external vendors (like Chantelle's partners) to access compre
 
 ## Tech Stack
 
-- React + TypeScript
-- Frontify app-bridge for platform integration
-- Tailwind CSS (with `tw-` prefix)
+- React 18 + TypeScript
+- Frontify App Bridge (v3.12.1) for platform integration
+- Tailwind CSS v3 (with `tw-` prefix)
 - GraphQL for Frontify API queries
+- Vite for build tooling
 
 ## Key Learnings
 
 - Collections in Frontify are accessed through libraries, not directly
 - Asset metadata requires querying `assets(ids: [...])` with specific IDs
-- Custom metadata fields use the `CustomMetadataValues` type with a `values` array
-- Proper error logging is essential for debugging GraphQL API structures
+- Custom metadata fields can have two types:
+  - `CustomMetadataValue` (singular) - has a `value` property
+  - `CustomMetadataValues` (plural) - has a `values` array
+- Colors cannot be automatically inherited from Frontify guidelines via API - must be configured through block settings
+- Block configuration should use Frontify's settings interface rather than environment variables for production use
 
 ## Known Limitations (POC)
 
-- No pagination support for large collections
+- No pagination support for large collections (fetches all assets at once)
 - Limited error recovery and user feedback
 - Basic styling implementation
 - No asset preview before export
-- Environment variables required (not configured through Frontify UI)
 - No automated tests
 - Minimal input validation
 - No rate limiting or API optimization
+- Personal Developer Tokens never expire (must be manually revoked if compromised)
+
+## Security Considerations
+
+- **Token Storage**: API tokens are stored in the block settings and used directly for GraphQL queries
+- **Token Scope**: Ensure tokens only have the minimum required scopes (`basic:read` and `basic:write`)
+- **Token Naming**: Use descriptive names when creating tokens to track usage
+- **Token Revocation**: Manually revoke tokens when no longer needed or if compromised
+- **Production Use**: For production deployments, use a Service User Token (contact Frontify support)
 
 ## License & Disclaimer
 
